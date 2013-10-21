@@ -1,3 +1,3 @@
 adpro-mcgs
 ==========
-Exercises solved from Advance Programming.
+Solved exercises from Advance Programming.
