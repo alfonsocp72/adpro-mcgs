@@ -1,0 +1,3 @@
+[submodule "alfBots/bots"]
+	path = alfBots/bots
+	url = https://github.com/clnznr/bots.git
