@@ -5,7 +5,7 @@
 #include <set>
 
 #define _LADO 10
-
+/*
 void pinta_escenario()
 {	
 	// Linea superior
@@ -34,8 +34,10 @@ void pinta_escenario()
 	}
 	std::cout << std::endl; 	
 }
+*/
 
-void pinta_escenario()
+
+void pinta_escenario(bots _Bots)
 {	
 	// Linea superior
 	for(int n = 0; n < _LADO + 2; ++n)
@@ -45,12 +47,16 @@ void pinta_escenario()
 	std::cout << std::endl;
  	
 	// Lineas intermedias
-	for(int n = 0; n < _LADO; ++n)
+	for(int fila = 0; fila < _LADO; ++fila)
 	{
 		std::cout << 'X';
-		for(int n = 0; n < _LADO; ++n)
+		for(int columna = 0; columna < _LADO; ++columna)
 		{
-			std::cout << ' ';
+			bot * posBot = _Bots.find_at( {columna, fila} );
+			if(posBot == nullptr)
+				std::cout << ' ';
+			else
+				std::cout << posBot->get_team();
 		}
 		std::cout << 'X';
 		std::cout << std::endl;			
@@ -77,26 +83,26 @@ int main(int argc, char* argv[])
 	myBots.generate(2, 10);
 	// myBots->generate(2, 10);
 
-	set<bot> theBots;
-	set<bot>::iterator i = theBots.beging();	
+		
 
 	while(true)
 	{
 		myBots.step();		 
 		std::cout << "\x1B[2J\x1B[H";
 		std::cout << "xxxx\tStep number: " << ++step_num << "\txxxx" << std::endl;
-		myBots.for_each_bot([] (const bot & b) {
-						
-			std::cout << b.get_team() << "\t"; // << std::endl;
-			std::cout << b.get_x() << "\t";
-			std::cout << b.get_y() << "\t";
-			std::cout << b.get_energy() << std::endl;
-
-			theBots.insert(b);
+		myBots.for_each_bot([&] (bot & b) {
+			
+			//myBots.can_move(b, bot::W);	
+			if(b.get_team() == 0)			
+				b.try_to_do(bot::W);		
+			//std::cout << b.get_team() << "\t"; // << std::endl;
+			//std::cout << b.get_x() << "\t";
+			//std::cout << b.get_y() << "\t";
+			//std::cout << b.get_energy() << std::endl;			
 			
 		});
 
-		pinta_escenario(theBots);
+		pinta_escenario(myBots);
 
 		std::cout << "xxxx\tStep number: " << step_num << "\txxxx" << std::endl;
 
