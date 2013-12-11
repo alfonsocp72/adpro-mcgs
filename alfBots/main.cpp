@@ -1,10 +1,19 @@
 #include <iostream>
 #include "bots.h"
-
 #include <stdlib.h>
 #include <set>
+#include <boost/asio.hpp>
+#include <boost/thread/thread.hpp>
 
-#define _LADO 10
+
+using boost::asio::ip::tcp;
+
+void send(tcp::socket &socket, const std::string & str) {
+    boost::asio::write(socket, boost::asio::buffer(str + "\n"), boost::asio::transfer_all());
+}
+
+const int _LADO=10;
+
 /*
 void pinta_escenario()
 {	
@@ -77,24 +86,51 @@ int main(int argc, char* argv[])
 	std::cout << "¡¡A jugar!!" << std::endl;
 	//const int _LADO =  10;
 
+	bot::team_id id = 1000;	
+
+	bot::field_size field_width;
+    bot::field_size field_height;
+
+    int win_width = 500;
+    int win_height = 500;
+	
+
 	bots myBots = bots(_LADO, _LADO);	        
 	// bots *myBots = new bots(10, 10);
 
 	myBots.generate(2, 10);
 	// myBots->generate(2, 10);
 
+	boost::mutex state_mutex;
 		
+	// Comunicacion servidor-cliente
+	boost::asio::io_service io_service;
+    tcp::resolver resolver(io_service);
+	auto endpoint_iterator = resolver.resolve({ argv[1], argv[2] });
+return (0);
+	std::shared_ptr<tcp::socket> socket(new tcp::socket(io_service));
 
-	while(true)
+    boost::asio::connect(*socket, endpoint_iterator);	
+	
+	bool gameover = false;
+
+	bool connected = false;
+    	
+	/*
+	while(!gameover)
 	{
 		myBots.step();		 
 		std::cout << "\x1B[2J\x1B[H";
 		std::cout << "xxxx\tStep number: " << ++step_num << "\txxxx" << std::endl;
 		myBots.for_each_bot([&] (bot & b) {
 			
+			std::stringstream stream;
+            stream << "move " << b.get_x() << " " << b.get_y() << " " << b.get_next_direction();
+            send(*socket, stream.str());			
+			
 			//myBots.can_move(b, bot::W);	
-			if(b.get_team() == 0)			
-				b.try_to_do(bot::W);		
+			//if(b.get_team() == 0)			
+			//	b.try_to_do(bot::W);		
 			//std::cout << b.get_team() << "\t"; // << std::endl;
 			//std::cout << b.get_x() << "\t";
 			//std::cout << b.get_y() << "\t";
@@ -111,6 +147,7 @@ int main(int argc, char* argv[])
 		//system("PAUSE");		
 		std::cin >> pause;
 	}
+	*/
 	std::cout << "Lo has ejecutado!" << std::endl;
 	return 0;	
 }
