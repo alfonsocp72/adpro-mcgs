@@ -95,10 +95,12 @@ int main(int argc, char* argv[])
     int win_height = 500;
 	
 
-	bots myBots = bots(_LADO, _LADO);	        
+	//bots myBots = bots(_LADO, _LADO); mal!
+	//bots myBost(_LADO, _LADO);
+	bots myBots;
 	// bots *myBots = new bots(10, 10);
 
-	myBots.generate(2, 10);
+	//myBots.generate(2, 10);
 	// myBots->generate(2, 10);
 
 	boost::mutex state_mutex;
@@ -107,7 +109,6 @@ int main(int argc, char* argv[])
 	boost::asio::io_service io_service;
     tcp::resolver resolver(io_service);
 	auto endpoint_iterator = resolver.resolve({ argv[1], argv[2] });
-return (0);
 	std::shared_ptr<tcp::socket> socket(new tcp::socket(io_service));
 
     boost::asio::connect(*socket, endpoint_iterator);	
@@ -116,17 +117,64 @@ return (0);
 
 	bool connected = false;
     	
-	/*
+	boost::asio::streambuf buf;
+
+	// read from server
+	read_until(*socket, buf, "\n");
+
+    std::string data;
+    std::istream is(&buf);
+    std::getline(is, data);
+
+
+    std::istringstream ilstream(data);
+
+    std::string command;
+    ilstream >> command;
+
+    if(command == "welcome") {
+        ilstream >> id;
+        std::cout << "team id: " << id << std::endl;
+        //ai.set_team(id);
+
+        ilstream >> field_width;
+        ilstream >> field_height;
+        myBots.set_size(field_width, field_height);
+        std::cout << "setting field: " << field_width << " x " << field_height << std::endl;
+        std::cout << "setting " << win_width << ", " << win_height << std::endl;
+        //set_screen(win_width, win_height, field_width, field_height);
+    }
+
+ /*
+			else if(command == "state") {
+
+			    std::stringstream state;
+			    while(!ilstream.eof()) {
+			        std::string a;
+			        ilstream >> a;
+				    state << a << " ";
+				}
+				boost::archive::text_iarchive ia(state);
+				{
+				    // mutex:
+				    // segfaults if it draws during a state update (drawing +
+				    // incomplete state is fatal)
+				    boost::mutex::scoped_lock lock(state_mutex);
+				    ia >> bots;
+				}
+			}*/
 	while(!gameover)
 	{
 		myBots.step();		 
-		std::cout << "\x1B[2J\x1B[H";
+		//std::cout << "\x1B[2J\x1B[H";
 		std::cout << "xxxx\tStep number: " << ++step_num << "\txxxx" << std::endl;
 		myBots.for_each_bot([&] (bot & b) {
 			
+			// send to server			
 			std::stringstream stream;
-            stream << "move " << b.get_x() << " " << b.get_y() << " " << b.get_next_direction();
+            stream << "move " << b.get_x() << " " << b.get_y() << " " << bot::W;
             send(*socket, stream.str());			
+			
 			
 			//myBots.can_move(b, bot::W);	
 			//if(b.get_team() == 0)			
@@ -134,7 +182,7 @@ return (0);
 			//std::cout << b.get_team() << "\t"; // << std::endl;
 			//std::cout << b.get_x() << "\t";
 			//std::cout << b.get_y() << "\t";
-			//std::cout << b.get_energy() << std::endl;			
+			//std::cout << b.get_energy() << std::endl;		
 			
 		});
 
@@ -147,7 +195,7 @@ return (0);
 		//system("PAUSE");		
 		std::cin >> pause;
 	}
-	*/
+	
 	std::cout << "Lo has ejecutado!" << std::endl;
 	return 0;	
 }
