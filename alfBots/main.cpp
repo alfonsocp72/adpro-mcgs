@@ -119,7 +119,7 @@ int main(int argc, char* argv[])
     	
 	boost::asio::streambuf buf;
 
-	// read from server
+	// read from serverv first time "welcome"
 	read_until(*socket, buf, "\n");
 
     std::string data;
@@ -141,10 +141,11 @@ int main(int argc, char* argv[])
         ilstream >> field_height;
         myBots.set_size(field_width, field_height);
         std::cout << "setting field: " << field_width << " x " << field_height << std::endl;
-        std::cout << "setting " << win_width << ", " << win_height << std::endl;
+        //std::cout << "setting " << win_width << ", " << win_height << std::endl;
         //set_screen(win_width, win_height, field_width, field_height);
     }
-
+	
+	
  /*
 			else if(command == "state") {
 
@@ -163,11 +164,46 @@ int main(int argc, char* argv[])
 				    ia >> bots;
 				}
 			}*/
+	//std::cin >> pause;	
 	while(!gameover)
-	{
-		myBots.step();		 
-		//std::cout << "\x1B[2J\x1B[H";
+	{	
+
+				 
+		std::cout << "\x1B[2J\x1B[H";
 		std::cout << "xxxx\tStep number: " << ++step_num << "\txxxx" << std::endl;
+		
+{
+//std::cin >> pause;
+	// read from server "state" (2nd time)
+	read_until(*socket, buf, "\n");
+
+    //std::string data;
+    std::istream is2(&buf);
+    std::getline(is2, data);
+
+
+    std::istringstream ilstream2(data);
+    //std::string command;
+    ilstream2 >> command;
+	
+	if(command == "state") {
+	    std::stringstream state;
+	    while(!ilstream2.eof()) {
+	        std::string a;
+	        ilstream2 >> a;
+		    state << a << " ";
+		}
+		std::cout << state.str() << std::endl;
+		std::cout << "Nos vamos ..." << std::endl;
+		boost::archive::text_iarchive ia(state);
+		{
+		    // mutex:
+		    // segfaults if it draws during a state update (drawing +
+		    // incomplete state is fatal)
+		    boost::mutex::scoped_lock lock(state_mutex);
+		    ia >> myBots;		
+		}
+		
 		myBots.for_each_bot([&] (bot & b) {
 			
 			// send to server			
@@ -185,8 +221,19 @@ int main(int argc, char* argv[])
 			//std::cout << b.get_energy() << std::endl;		
 			
 		});
-
 		pinta_escenario(myBots);
+	}
+	else {
+		std::cout << "GAMEOVER: Server says " << command << std::endl;
+	} 
+	
+}
+
+
+
+
+
+		
 
 		std::cout << "xxxx\tStep number: " << step_num << "\txxxx" << std::endl;
 
