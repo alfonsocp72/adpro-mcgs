@@ -1,248 +1,202 @@
 #include <iostream>
 #include "bots.h"
-#include <stdlib.h>
-#include <set>
 #include <boost/asio.hpp>
 #include <boost/thread/thread.hpp>
 
-
 using boost::asio::ip::tcp;
 
-void send(tcp::socket &socket, const std::string & str) {
-    boost::asio::write(socket, boost::asio::buffer(str + "\n"), boost::asio::transfer_all());
-}
-
-const int _LADO=10;
-
-/*
-void pinta_escenario()
-{	
-	// Linea superior
-	for(int n = 0; n < _LADO + 2; ++n)
-	{
-		std::cout << 'X';		
-	}
-	std::cout << std::endl;
- 	
-	// Lineas intermedias
-	for(int n = 0; n < _LADO; ++n)
-	{
-		std::cout << 'X';
-		for(int n = 0; n < _LADO; ++n)
-		{
-			std::cout << ' ';
-		}
-		std::cout << 'X';
-		std::cout << std::endl;			
-	}
-
-	// Linea inferior
-	for(int n = 0; n < _LADO + 2; ++n)
-	{
-		std::cout << 'X';		
-	}
-	std::cout << std::endl; 	
-}
-*/
-
-
-void pinta_escenario(bots _Bots)
-{	
-	// Linea superior
-	for(int n = 0; n < _LADO + 2; ++n)
-	{
-		std::cout << 'X';		
-	}
-	std::cout << std::endl;
- 	
-	// Lineas intermedias
-	for(int fila = 0; fila < _LADO; ++fila)
-	{
-		std::cout << 'X';
-		for(int columna = 0; columna < _LADO; ++columna)
-		{
-			bot * posBot = _Bots.find_at( {columna, fila} );
-			if(posBot == nullptr)
-				std::cout << ' ';
-			else
-				std::cout << posBot->get_team();
-		}
-		std::cout << 'X';
-		std::cout << std::endl;			
-	}
-
-	// Linea inferior
-	for(int n = 0; n < _LADO + 2; ++n)
-	{
-		std::cout << 'X';		
-	}
-	std::cout << std::endl; 	
-}
-
-int main(int argc, char* argv[])
+void pinta_escenario( bots & mis_bots, bot::field_size cols, bot::field_size filas)
 {
-	std::string pause;
-	int step_num = 0;
-	std::cout << "¡¡A jugar!!" << std::endl;
-	//const int _LADO =  10;
+std::cout << "\x1B[2J\x1B[H"; // Despeja la pantalla del terminal
+for ( int col = 0; col < cols + 2; col++ ) // Primera fila de X
+        std::cout << 'X'; 
+std::cout << std::endl;
+for ( int fila = 0; fila < filas; fila++ ) //! Recorre toda la altura
+        {
+std::cout << 'X'; // Primera X de la fila
+for ( int col = 0; col < cols; col++ ) // Espacios en blanco
+{
+bot * pos_bot = mis_bots.find_at( { col, fila} );
+if ( pos_bot == nullptr )
+                        std::cout << ' '; 
+else
+std::cout << pos_bot->get_team();
+}
+std::cout << 'X'; //! Espacios de 1a altura - fila
+                std::cout << std::endl;
+        }
+for ( int col = 0; col < cols + 2; col++ ) // Primera fila de X
+                        std::cout << 'X'; 
+std::cout << std::endl;
+}
 
-	bot::team_id id = 1000;	
+class client_bot
+{
+private:
+tcp::resolver _resolver;
+tcp::socket _socket;
+boost::asio::streambuf _packetToSend;
+boost::asio::streambuf _receiver;
+bots & _bots;
+boost::mutex & _state_mutex;
+bot::team_id & _id;
+bot::field_size _field_width;
+bot::field_size _field_height;
 
-	bot::field_size field_width;
-    bot::field_size field_height;
+public:
+ client_bot(boost::asio::io_service& io_service, const std::string& server,
+   const std::string& port, bots & bts, boost::mutex & sm, bot::team_id & id)
+ : _resolver(io_service),
+   _socket(io_service),
+   _bots(bts),
+   _state_mutex(sm),
+   _id(id)
+ {
+ // Start an asynchronous resolve to translate the server and service names
+ // into a list of endpoints.
+ std::cout << "Resolving..." << std::endl;
+ tcp::resolver::query query(server, port);
+ _resolver.async_resolve(query,
+  boost::bind(&client_bot::handle_resolve, this,
+  boost::asio::placeholders::error,
+  boost::asio::placeholders::iterator));
+ }
 
-    int win_width = 500;
-    int win_height = 500;
-	
+private:
+ void handle_resolve(const boost::system::error_code& err,
+   tcp::resolver::iterator endpoint_iterator)
+ {
+  if (!err)
+  {
+   // Attempt a connection to the first endpoint in the list. Each endpoint
+   // will be tried until we successfully establish a connection.
+   std::cout << "Connecting to " << endpoint_iterator->host_name() << std::endl;
+   tcp::endpoint endpoint = *endpoint_iterator;
+   _socket.async_connect(endpoint,
+    boost::bind(&client_bot::handle_connect, this,
+    boost::asio::placeholders::error, ++endpoint_iterator));
+  }
+  else
+  {
+   std::cout << "Error resolving: " << err.message() << "\n";
+  }
+ }
 
-	//bots myBots = bots(_LADO, _LADO); mal!
-	//bots myBost(_LADO, _LADO);
-	bots myBots;
-	// bots *myBots = new bots(10, 10);
+ void handle_connect(const boost::system::error_code& err,
+   tcp::resolver::iterator endpoint_iterator)
+ {
+  if (!err)
+  {
 
-	//myBots.generate(2, 10);
-	// myBots->generate(2, 10);
+   // The connection was successful. Send the request.
+   std::cout << "Retrieving..." << std::endl;
+   // Read the response status line.
+   boost::asio::async_read_until(_socket, _receiver, "\n",
+    boost::bind(&client_bot::handle_read_command, this,
+    boost::asio::placeholders::error));
+  }
+  else if (endpoint_iterator != tcp::resolver::iterator())
+  {
+   // The connection failed. Try the next endpoint in the list.
+   _socket.close();
+   tcp::endpoint endpoint = *endpoint_iterator;
+   _socket.async_connect(endpoint,
+    boost::bind(&client_bot::handle_connect, this,
+    boost::asio::placeholders::error, ++endpoint_iterator));
+  }
+  else
+  {
+   std::cout << "Error: " << err.message() << "\n";
+  }
+ }
 
-	boost::mutex state_mutex;
-		
-	// Comunicacion servidor-cliente
-	boost::asio::io_service io_service;
-    tcp::resolver resolver(io_service);
-	auto endpoint_iterator = resolver.resolve({ argv[1], argv[2] });
-	std::shared_ptr<tcp::socket> socket(new tcp::socket(io_service));
+ void handle_read_command(const boost::system::error_code& err)
+ {
+  if (!err)
+  {
+   // Check that response is OK.
+   std::string data;
+   std::istream _receiverstream(&_receiver);
+   std::getline(_receiverstream, data);
 
-    boost::asio::connect(*socket, endpoint_iterator);	
-	
-	bool gameover = false;
+   std::istringstream stream(data);
+   std::string command;
+   stream >> command;
 
-	bool connected = false;
-    	
-	boost::asio::streambuf buf;
-
-	// read from serverv first time "welcome"
-	read_until(*socket, buf, "\n");
-
-    std::string data;
-    std::istream is(&buf);
-    std::getline(is, data);
-
-
-    std::istringstream ilstream(data);
-
-    std::string command;
-    ilstream >> command;
-
-    if(command == "welcome") {
-        ilstream >> id;
-        std::cout << "team id: " << id << std::endl;
-        //ai.set_team(id);
-
-        ilstream >> field_width;
-        ilstream >> field_height;
-        myBots.set_size(field_width, field_height);
-        std::cout << "setting field: " << field_width << " x " << field_height << std::endl;
-        //std::cout << "setting " << win_width << ", " << win_height << std::endl;
-        //set_screen(win_width, win_height, field_width, field_height);
+   // Read the response headers, which are terminated by a blank line.
+   if(command == "welcome") {
+    stream >> _id;
+    stream >> _field_width;
+    stream >> _field_height;
+    std::cout << data << std::endl;
+    //ai.set_team(id);
+    while(!stream.eof()) {
+     std::string a;
+     stream >> a;
+     //state << a << " ";
     }
-	
-	
- /*
-			else if(command == "state") {
+   }
+   else if(command == "state") {
 
-			    std::stringstream state;
-			    while(!ilstream.eof()) {
-			        std::string a;
-			        ilstream >> a;
-				    state << a << " ";
-				}
-				boost::archive::text_iarchive ia(state);
-				{
-				    // mutex:
-				    // segfaults if it draws during a state update (drawing +
-				    // incomplete state is fatal)
-				    boost::mutex::scoped_lock lock(state_mutex);
-				    ia >> bots;
-				}
-			}*/
-	//std::cin >> pause;	
-	while(!gameover)
-	{	
+    std::stringstream state;
+    while(!stream.eof()) {
+     std::string a;
+     stream >> a;
+     state << a << " ";
+    }
+    boost::archive::text_iarchive ia(state);
+    {
+     // mutex:
+     // segfaults if it draws during a state update (drawing +
+     // incomplete state is fatal)
+     boost::mutex::scoped_lock lock(_state_mutex);
+     ia >> _bots;
+    }
+    std::cout << "State updated" << std::endl;
+    pinta_escenario(_bots, _field_width, _field_height);
+   }
 
-				 
-		std::cout << "\x1B[2J\x1B[H";
-		std::cout << "xxxx\tStep number: " << ++step_num << "\txxxx" << std::endl;
-		
+         for(auto b : _bots.team_bots(_id)) {
+          std::ostream _packetToSendstream(&_packetToSend);
+          _packetToSendstream << "move " << b->get_x() << " " << b->get_y() << " 2\n";
+
+          boost::asio::async_write(_socket, _packetToSend,
+     boost::bind(&client_bot::handle_write_request, this,
+     boost::asio::placeholders::error));
+         }
+   boost::asio::async_read_until(_socket, _receiver, "\n",
+    boost::bind(&client_bot::handle_read_command, this,
+    boost::asio::placeholders::error));
+  }
+  else
+  {
+   std::cout << "Error reading command: " << err << "\n";
+  }
+ }
+
+ void handle_write_request(const boost::system::error_code& err)
+ {
+     if (!err)
+     {
+
+     }
+     else
+     {
+      std::cout << "Error writing: " << err.message() << "\n";
+     }
+ }
+};
+
+int main (int argc, char* argv[])
 {
-//std::cin >> pause;
-	// read from server "state" (2nd time)
-	read_until(*socket, buf, "\n");
+// Mi instancia de la clase bots        
+bots mi_bots;
+bot::team_id id = 1001;
 
-    //std::string data;
-    std::istream is2(&buf);
-    std::getline(is2, data);
+boost::asio::io_service io_service; // Inicia comunicaciones
+boost::mutex state_mutex;
+client_bot mi_cliente_bot(io_service, argv[1], argv[2], mi_bots, state_mutex, id);
+io_service.run();
 
-
-    std::istringstream ilstream2(data);
-    //std::string command;
-    ilstream2 >> command;
-	
-	if(command == "state") {
-	    std::stringstream state;
-	    while(!ilstream2.eof()) {
-	        std::string a;
-	        ilstream2 >> a;
-		    state << a << " ";
-		}
-		std::cout << state.str() << std::endl;
-		std::cout << "Nos vamos ..." << std::endl;
-		boost::archive::text_iarchive ia(state);
-		{
-		    // mutex:
-		    // segfaults if it draws during a state update (drawing +
-		    // incomplete state is fatal)
-		    boost::mutex::scoped_lock lock(state_mutex);
-		    ia >> myBots;		
-		}
-		
-		myBots.for_each_bot([&] (bot & b) {
-			
-			// send to server			
-			std::stringstream stream;
-            stream << "move " << b.get_x() << " " << b.get_y() << " " << bot::W;
-            send(*socket, stream.str());			
-			
-			
-			//myBots.can_move(b, bot::W);	
-			//if(b.get_team() == 0)			
-			//	b.try_to_do(bot::W);		
-			//std::cout << b.get_team() << "\t"; // << std::endl;
-			//std::cout << b.get_x() << "\t";
-			//std::cout << b.get_y() << "\t";
-			//std::cout << b.get_energy() << std::endl;		
-			
-		});
-		pinta_escenario(myBots);
-	}
-	else {
-		std::cout << "GAMEOVER: Server says " << command << std::endl;
-	} 
-	
-}
-
-
-
-
-
-		
-
-		std::cout << "xxxx\tStep number: " << step_num << "\txxxx" << std::endl;
-
-		
-		//std::cin.get();
-		//system("PAUSE");		
-		std::cin >> pause;
-	}
-	
-	std::cout << "Lo has ejecutado!" << std::endl;
-	return 0;	
+return(0);
 }
