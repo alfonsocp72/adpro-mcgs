@@ -2,12 +2,45 @@
 #include "bots.h"
 #include <boost/asio.hpp>
 #include <boost/thread/thread.hpp>
+#include <unistd.h>
 
 using boost::asio::ip::tcp;
 
+int next_dir(int d_x,int d_y)
+{
+	int dir = rand()%9;
+	switch (d_x)
+	{
+		case -1: 
+			if(d_y < 0)
+				dir = 6;
+			else if(d_y > 0)
+					dir = 8;
+			else
+				dir = 7;
+			break;
+		case 0:
+			if(d_y < 0)
+				dir = 5;		
+			else
+				dir = 1;
+			break;
+		case 1:
+			if(d_y < 0)
+				dir = 4;
+			else if(d_y > 0)
+				dir = 2;
+			else
+				dir = 3;
+			break;
+		default:
+			break;
+	}
+	return dir;
+}
 void pinta_escenario( bots & mis_bots, bot::field_size cols, bot::field_size filas)
 {
-std::cout << "\x1B[2J\x1B[H"; // Despeja la pantalla del terminal
+//std::cout << "\x1B[2J\x1B[H"; // Despeja la pantalla del terminal
 for ( int col = 0; col < cols + 2; col++ ) // Primera fila de X
         std::cout << 'X'; 
 std::cout << std::endl;
@@ -42,6 +75,7 @@ boost::mutex & _state_mutex;
 bot::team_id & _id;
 bot::field_size _field_width;
 bot::field_size _field_height;
+int counter = 1;
 
 public:
  client_bot(boost::asio::io_service& io_service, const std::string& server,
@@ -155,18 +189,74 @@ private:
     //std::cout << "State updated" << std::endl;
     pinta_escenario(_bots, _field_width, _field_height);
    }
+			std::cout << "Counter: " << counter << "\n";	
+			//sleep(1);
+         	
+			_bots.for_each_bot([&] ( bot & b ) {
+			   std::cout << b.get_team() << "\t"; // std::endl;
+			   std::cout << b.get_x() << "\t";
+			   std::cout << b.get_y() << "\t";
+			   std::cout << b.get_energy() << "\t";
+			   std::cout << b.get_attack() << "\t";
+			   std::cout << b.get_defense() << "\t";
+			   std::cout << b.get_experience() << "\t";
+			   std::cout << std::endl;
+			   //mi_bots.can_move( b, bot::W);
+			   //b.try_to_do(bot::W);
+			  });
+			int dir = rand()%9;	// random movement
 
-         for(auto b : _bots.team_bots(_id)) {
-         	int dir = rand()%9;
-			//std::cout << dir << std::endl;
-			//dir = 6;
-          std::ostream _packetToSendstream(&_packetToSend);
-          _packetToSendstream << "move " << b->get_x() << " " << b->get_y()<< " " << std::to_string(dir) << std::endl;
+			if(counter++ %20 == 0)
+			{
+				int dir;
+				//std::cout << "Inside: " << counter << "\n";				
+				counter = 1;				
+				for(auto b : _bots.team_bots(_id))
+				{
+				 	
+					dir = 0;
+				  	//const bot & bc = &b;
+					_bots.for_each_bot([&] (const bot & b_all ) {
+						if(b_all.get_team() != b->get_team())
+						{
+							//std::cout << "Team ID: " << b_all.get_team() << "\n";	
+							//bot::field_size dis_x = _bots.distance_x(b_all, b_all);
+							//std::cout << "Distance x: " << dis_x << "\n";
+							//bool  adjacente = _bots.is_adjacent(bc, b_all);
+ 							//std::cout << "Adjacente: " << adjacente << "\n";
 
-          boost::asio::async_write(_socket, _packetToSend,
-     boost::bind(&client_bot::handle_write_request, this,
-     boost::asio::placeholders::error));
-         }
+
+							int delta_x = b_all.get_x() - b->get_x();
+							if( abs(delta_x) < 2)
+							{	
+								int delta_y = b_all.get_y() - b->get_y();	
+								if( abs(delta_y) < 2)
+								{	
+									std::cout << "Este es adjacente\n";
+std::cout << b->get_team() << "\t" <<b->get_x() << "\t"<< b->get_y() << "\n";
+std::cout << b_all.get_team() << "\t" <<b_all.get_x() << "\t"<< b_all.get_y() << "\n";
+
+									// encontrar direccion
+									dir = next_dir(delta_x,delta_y);
+								}	
+							}								
+						}
+					   
+					  });
+
+					if(!dir)
+					{
+						dir = rand()%9;
+					}
+					std::ostream _packetToSendstream(&_packetToSend);
+				  	_packetToSendstream << "move " << b->get_x() << " " << b->get_y()<< " " << std::to_string(dir) << std::endl;
+
+					boost::asio::async_write(_socket, _packetToSend,
+					boost::bind(&client_bot::handle_write_request, this,
+					boost::asio::placeholders::error));	
+					
+				}
+			}
    boost::asio::async_read_until(_socket, _receiver, "\n",
     boost::bind(&client_bot::handle_read_command, this,
     boost::asio::placeholders::error));
