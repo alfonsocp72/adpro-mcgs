@@ -138,7 +138,8 @@ int main()
 		std::string blank (half_wide - n, ' ');
 		std::string stars (2 * n, '*');
 		std::cout << blank << stars << std::endl;
+
 	}	
-	
+
 	return 0;	
 }
