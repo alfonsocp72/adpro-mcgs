@@ -51,36 +51,61 @@ int main()
 			std::cout << output_it->first << "\t" << output_it->second << std::endl;		
 		}
 		
-		// 3. create a for loop that gets a map of <string, float> and updates the
+		// (3.) 4. create a for loop that gets a map of <string, float> and updates the
 		// same map so that it adds "yeah!" to each string and rounds the float
 		// number. transform it in place.
 		std::cout << "\n4. Loop that gets a map of <string, float> and updates the same map " 
 			<< "\n   so that it adds ""yeah!"" to each string and rounds the float number."
 			<< "\n   Transformation is done in place.";
 		std::map<std::string, float> transform_map;
-		input_map["pi"] = 3.1415f;
-		input_map["e"] = 2.7182f;
-		input_map["sqrt 2"] = 1.4142f;
-		input_map["ln 2"] = 0.6931f;		
+		transform_map["pi"] = 3.1415f;
+		transform_map["e"] = 2.7182f;
+		transform_map["sqrt 2"] = 1.4142f;
+		transform_map["ln 2"] = 0.6931f;		
 		std::cout << "\nMap of <string, float> before transformation:\n";
 		std::map<std::string, float>::iterator transform_it = transform_map.begin();
-		for(transform_map.begin(); transform_it != transform_map.end(); transform_it++) {
-			std::cout << transform_it->first << "\t" << transform_it->second << std::endl;		
-		}		
+		for(; transform_it != transform_map.end(); transform_it++) {
+			std::cout << transform_it->first << "\t" << transform_it->second << std::endl;
+		}			
+		
+		std::cout << "\nMap of <string, float> after transformation with const_cast: DANGEROUS METHOD!!!\n";
 		transform_it = transform_map.begin();
 		for(; transform_it != transform_map.end(); transform_it++) {
-			std::string my_string = transform_it->first;
-			my_string += " yeah!";			
-			//std::string* my_pointer = transform_it->first;
-			//&my_pointer = my_string ;
+			const_cast<std::string &>(transform_it->first) = transform_it->first + " yeah!";
+			transform_it->second = trunc(transform_it->second);
+			std::cout << transform_it->first << "\t" << transform_it->second << std::endl;			
+		}
+		
+		// (3.) 4. (cont) reset the map to change it with a good method
+		transform_map.clear();
+		transform_map["pi"] = 3.1415f;
+		transform_map["e"] = 2.7182f;
+		transform_map["sqrt 2"] = 1.4142f;
+		transform_map["ln 2"] = 0.6931f;		
+		std::cout << "\nMap of <string, float> before transformation: \"Good method\" \n";
+		//std::map<std::string, float>::iterator transform_it = transform_map.begin();
+		transform_it = transform_map.begin();
+		for(; transform_it != transform_map.end(); transform_it++) {
+			std::cout << transform_it->first << "\t" << transform_it->second << std::endl;
+		}		
+		std::map<std::string, float>::iterator transform_end = transform_map.end();
+		transform_it = transform_map.begin();		
+		for(; transform_it != transform_end; transform_it++) {
+			std::string my_string = transform_it->first + " yeah!";
+			int temp = trunc(transform_it->second);
+			transform_map.erase(transform_it);
+			
+			transform_map.insert( std::pair<std::string, float>(my_string,temp));
+			//transform_map[my_string] = temp; // Esta linea se puede utilizar como alternativa a la anterior.
 		}		
 		std::cout << "\nMap of <string, float> after transformation:\n";
-		transform_it = transform_map.begin();
-		for(; transform_it != transform_map.end(); transform_it++) {
+		for(transform_it = transform_map.begin(); transform_it != transform_map.end(); transform_it++) {
 			std::cout << transform_it->first << "\t" << transform_it->second << std::endl;		
 		}
 		//----------------------------------------------------------------------		
 	}
+
+	
 	{
 		// 4. transform every previous exercise to ranged for loops. use as much
 		// c++11 syntax as you can
@@ -115,17 +140,50 @@ int main()
 				<< "\n\t so that it adds ""yeah!"" to each string and rounds the float"
 				<<	"number. transform it in place";
 		std::map<std::string, float> transform_map = {{"pi", 3.1415f}, {"e", 2.7182f}, {"sqrt2", 1.4142f}, {"ln2", 0.6931f}};
+				
+		std::cout << "\nMap of <string, float> before transformation:\n";
+		std::map<std::string, float>::iterator transform_it = transform_map.begin();
+		for(auto kv: transform_map) {
+			std::cout << kv.first << "\t" << kv.second << std::endl;
+		}		
+		std::cout << "\nMap of <string, float> after transformation with const_cast: DANGEROUS METHOD!!!\n";		
+		for(auto kv: transform_map) {
+			const_cast<std::string &>(kv.first) = kv.first + " yeah!";
+			kv.second = trunc(kv.second);
+			std::cout << kv.first << "\t" << kv.second << std::endl;			
+		}
 		
+		// (3.) 4. (cont) reset the map to change it with a good method
+		transform_map.clear();
+		transform_map = {{"pi", 3.1415f}, {"e", 2.7182f}, {"sqrt2", 1.4142f}, {"ln2", 0.6931f}};		
+		std::cout << "\nMap of <string, float> before transformation: \"Good method\" \n";		
+		for(auto kv: transform_map) {
+			std::cout << kv.first << "\t" << kv.second << std::endl;
+		}		
+		std::map<std::string, float>::iterator transform_end = transform_map.end();
+		transform_it = transform_map.begin();		
+		for(auto it11 = transform_map.cbegin(); it11 != transform_map.cend(); ++it11) {
+			std::string my_string = it11->first + " yeah!";
+			int temp = trunc(it11->second);
+			transform_map.erase(it11);
+			
+			//transform_map.insert( std::pair<std::string, float>(my_string,temp));
+			transform_map[my_string] = temp; // Esta linea se puede utilizar como alternativa a la anterior.
+		}		
+		std::cout << "\nMap of <string, float> after transformation:\n";
+		for(auto kv: transform_map) {
+			std::cout << kv.first << "\t" << kv.second << std::endl;
+		}
 	}
 	
 	// 5. write a for loop that prints a pyramid of height N, like this:    
-    //	
-    //	               **
-    //	              ****
-    //	             ******
-    //	            ********
-    //	           **********
-    //	          ************
+	//	
+	//	               **
+	//	              ****
+	//	             ******
+	//	            ********
+	//	           **********
+	//	          ************
 	std::cout << "\n\n+++++Loop that prints a pyramid of height N:\n";	
 	int  N = 0;		
 	while( N > 40 || N < 1)	{

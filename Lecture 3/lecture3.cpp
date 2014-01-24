@@ -48,10 +48,10 @@ public:
 	{
 		std::cout << "> Posicion de memoria inicial de cadena1: \t";
 		std::cout << reinterpret_cast<const void*>((const void*)&cadena) << std::endl;
-		std::cout << "> Posicion de memoria de cadena 2 antes de mover: \t";
+		std::cout << "> Posicion de memoria de cadena2 antes de mover: \t";
 		std::cout << reinterpret_cast<const void*>((const void*)&copy.cadena) << std::endl;
 		cadena = move(copy.cadena);
-		std::cout << "> Posicion de memoria de cadena 2 despues de mover: \t";
+		std::cout << "> Posicion de memoria de cadena2 despues de mover: \t";
 		std::cout << reinterpret_cast<const void*>((const void*)&cadena) << std::endl;
 		std::cout << "> Nota : La posicion de memoria de final cadena 2 es la misma que la de cadena 1\n";
 	}
@@ -67,7 +67,7 @@ private:
 
 };
 
-int _tmain(int argc, _TCHAR* argv[])
+int main(int argc, char* argv[])
 {
 	std::cout << "Inicio de la secuencia de borrado de puntero\n";
 	// Uso de RAII para dar ambito a la clase autoBorra
@@ -83,6 +83,5 @@ int _tmain(int argc, _TCHAR* argv[])
 	move1.posicionMemoria(); 
 	cortaPega move2 = std::move(move1);
 	move2.posicionMemoria();
-	system("PAUSE");
 	return 0;
 }
